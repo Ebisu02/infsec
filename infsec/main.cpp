@@ -1,66 +1,180 @@
 #include <iostream>
 #include <vector>
+#include <ctime>
 #include <unordered_map>
 #include <algorithm>
+#include <cstdlib>
+#include <random>
+#include <stdio.h>
+#include <map>
 
 #define ll long long
 #define ld long double
 
-int power(int b, int e, int m);
+uint64_t power(int b, int e, int m);
 ld evklid_algo(ll a, ll b); // a >= b && a > 0 && b > 0
 std::vector<ll> obobs_evklid_algo(ll a, ll b);
-int diffi_hellman(int p, int g, int a, int b); // return a vector<int>[2] where { SecretKeyA, SecretKeyB }
+uint64_t diffi_hellman_sh();
 ld discrete_log(int p, int g, int y);
-ld fast_pow(ll num, ll deg);
+bool is_prime(uint64_t num);
+std::vector<uint64_t> generate_random_prime_in_range(uint64_t lowerRange, uint64_t upperRange);
+void shamir_sh(ll msg);
+bool test_ferma(ll p, int k);
+void el_gamal_sh();
+void vernama_sh();
+void rsa_sh();
 
 int main() {
-	std::cout << (ld)power(2, 2, 5) << "\n";
-	std::vector<ll> buf = obobs_evklid_algo(28, 19);
+	uint64_t a = generate_random_prime_in_range(10000, 100000)[0], b = generate_random_prime_in_range(10000, 100000)[1];
+	uint64_t c = a + 1, d = b + 1;
+	std::vector<ll> t = obobs_evklid_algo((ll)a, (ll)b);
+	std::vector<ll> t1 = obobs_evklid_algo((ll)c, (ll)d);
+	std::cout << b << "\t" << a << "\t" << t[0] << "\t" << t[1] << "\t" << t[2] << "\n";
+	std::cout << c << "\t" << d << "\t" << t1[0] << "\t" << t1[1] << "\t" << t1[2] << "\n";
+	test_ferma(a, 10);
+	setlocale(LC_ALL, "RUSSIAN");
+	std::cout << "число b в степени e по модулю m: " << (ld)power(3, 544333, 765851) << "\n";
+	std::vector<ll> buf = obobs_evklid_algo(22, 20);
 	std::cout << buf[0] << " " << buf[1] << " " << buf[2] << "\n";
-	std::cout << "Shared key - " << diffi_hellman(101, 2, 4, 3) << "\n";
-	std::cout << "The discrete log is: " << discrete_log(17, 3, 13);
+	diffi_hellman_sh();
+	std::cout << "Дискретный логарифм числа 17: " << discrete_log(7685, 3, 2277);
 	return 0;
 }
 
-ld discrete_log(int p, int g, int y) {
-	int m = ceil(sqrt(p - 1));
-	std::unordered_map<int, int> baby_steps;
-	for (int i = 0, j = y % p; i < m; ++i) {
-		baby_steps.insert({ j, i });
-		j = (j * g) % p;
+void shamir_sh(ll msg) {
+	srand(time(nullptr));
+	std::vector<uint64_t> primes = generate_random_prime_in_range(msg, msg + 1000);
+
+	std::random_device r;
+	std::default_random_engine e(r());
+	std::uniform_int_distribution<uint64_t> dist(msg, msg + 1000);
+
+	uint64_t p = primes[rand() % primes.size()];
+
+}
+
+// generate unique key for both users
+uint64_t diffi_hellman_sh() {
+	srand(time(nullptr));
+	uint64_t q = 0, p = 0, g = 4, xa = 0, xb = 0;
+	std::cout << "Generated:\n";
+	while (1) {
+		std::vector<uint64_t> bq = generate_random_prime_in_range(9000, 10000);
+		q = bq[rand() % bq.size()];
+		p = 2 * q + 1;
+		if (is_prime(p)) { break; }
 	}
-	int gm = power(g, m, p);
-	int giant_step = 1;
-	for (int i = 0; i < m; ++i) {
-		if (baby_steps.find(giant_step) != baby_steps.end()) {
-			int j = baby_steps[giant_step];
-			return i * m + j;
+	std::cout << "q = " << q << "\np = " << p << "\n";
+
+	while (power(g, q, p) == 1 && g < p - 1) {
+		g++;
+		std::cout << "g = " << g << "\n";
+	}
+	//std::cout << "g = " << g << "\n";
+	  
+	std::random_device r;
+	std::default_random_engine e(r());
+	std::uniform_int_distribution<uint64_t> dist(1000, p - 1);
+
+	xa = dist(e);
+	xb = dist(e);
+	std::cout << "Secret keys:\nxa = " << xa << "\nxb = " << xb << "\n";
+
+	uint64_t ya, yb;
+	ya = power(g, xa, p);
+	yb = power(g, xb, p);
+	std::cout << "Open keys:\nya = " << ya << "\nyb = " << yb << "\n";
+	uint64_t zab, zba;
+	zab = power(yb, xa, p);
+	zba = power(ya, xb, p);
+	std::cout << "zab = " << zab << "\nzba = " << zba << "\n";
+	// auth error: if zab != zba throw exception
+	if (zab != zba) {
+		std::exception e("Final keys isnt equals");
+		std::cout << "\nError: " << e.what() << "\n";
+		throw e;
+	}
+	return zba;
+}
+
+ld discrete_log(int p, int a, int y) {
+	int n = sqrt(p) + 1;
+	std::map<int, int> val;
+	for (int i = n; i >= 1; --i) {
+		val[power(a, i * n, p)] = i;
+	}
+	for (int j = 0; j <= n; ++j) {
+		int cur = (power(a, j, p) * y) % p;
+		if (val[cur]) {
+			int res = val[cur] * n - j;
+			if (res < p) {
+				return res;
+			}
 		}
-		giant_step = (giant_step * gm) % p;
 	}
 	return -1;
 }
 
-// Функция возведения числа b в степень e по модулю m
-int power(int b, int e, int m) {
-	int res = 1;
-	for (int i = 0; i < e; i++) {
-		res *= b;
-		res %= m;
+// Функция возведения числа a в степень x по модулю p
+uint64_t power(int a, int x, int p) {
+	uint64_t y = 1, s = a;
+	std::vector<short> sx;
+	while (x > 0) {
+		sx.push_back(x % 2);
+		x /= 2;
 	}
-	return res;
+	
+	//std::reverse(sx.begin(), sx.end());
+	for (ll i = 0; i < sx.size(); ++i) {
+		if (sx[i] == 1) {
+			y = (y * s) % p;
+		}
+		s = (s * s) % p;
+	}
+	return y;
 }
 
-int diffi_hellman(int p, int g, int a, int b) {
-	int ka = power(g, a, p);
-	int kb = power(g, b, p);
-	int sa = power(kb, a, p);
-	int sb = power(ka, b, p);
-	if (sa == sb) return sa;
-	else {
-		std::cout << "Error occured. The shared secret key does not match\n";
-		return -1;
+bool test_ferma(ll p, int k) {
+	if (p == 2) return true;
+	if (p & 1) return false;
+	for (int i = 0; i < k; ++i) {
+		ll a = rand() % (p - 1) + 1;
+		if (evklid_algo(a, p) != 1 || power(a, p - 1, p) != 1)
+			return false;
 	}
+	return true;
+}
+
+std::vector<uint64_t> generate_random_prime_in_range(uint64_t lowerRange, uint64_t upperRange) {
+	std::vector<bool> isPrime(upperRange + 1, true);
+	isPrime[0] = false;
+	isPrime[1] = false;
+
+	for (uint64_t i = 2; i * i <= upperRange; ++i) {
+		if (isPrime[i]) {
+			for (uint64_t j = i * i; j <= upperRange; j += i) {
+				isPrime[j] = false;
+			}
+		}
+	}
+
+	std::vector<uint64_t> primes;
+	for (uint64_t i = lowerRange; i <= upperRange; ++i) {
+		if (isPrime[i]) {
+			primes.push_back(i);
+		}
+	}
+	return primes;
+}
+
+bool is_prime(uint64_t num) {
+	if (num < 2) { return false; }
+	for (uint64_t i = 2; i <= num / 2; ++i) {
+		if (num % i == 0) {
+			return false;
+		}
+	}
+	return true;
 }
 
 std::vector<ll> obobs_evklid_algo(ll a, ll b) {
@@ -87,32 +201,4 @@ ld evklid_algo(ll a, ll b) {
 		b = r;
 	}
 	return a;
-}
-
-ld fast_pow(ll num, ll deg) {
-	ld result = 1;
-	if (deg < 0) {
-		while (deg) {
-			if (deg % 2 == 0) {
-				deg /= 2;
-				num *= num;
-			}
-			else {
-				deg++;
-				result *= num;
-			}
-		}
-		return 1 / result;
-	}
-	while (deg) {
-		if (deg % 2 == 0) {
-			deg /= 2;
-			num *= num;
-		}
-		else {
-			deg--;
-			result *= num;
-		}
-	}
-	return result;
 }
